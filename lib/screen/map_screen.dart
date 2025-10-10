@@ -47,6 +47,7 @@ class _MapScreenState extends State<MapScreen> {
       ),
     );
   }
+
   Widget currentWidget() {
     Widget widget = origin();
     switch (currentWidgetList.last) {
@@ -63,7 +64,7 @@ class _MapScreenState extends State<MapScreen> {
     return widget;
   }
 
-  Positioned origin(){
+  Positioned origin() {
     return Positioned(
       bottom: 0,
       left: 0,
@@ -81,7 +82,8 @@ class _MapScreenState extends State<MapScreen> {
       ),
     );
   }
-  Positioned dest(){
+
+  Positioned dest() {
     return Positioned(
       bottom: 0,
       left: 0,
@@ -99,7 +101,8 @@ class _MapScreenState extends State<MapScreen> {
       ),
     );
   }
-  Positioned reqDriver(){
+
+  Positioned reqDriver() {
     return Positioned(
       bottom: 0,
       left: 0,
@@ -107,12 +110,10 @@ class _MapScreenState extends State<MapScreen> {
       child: Padding(
         padding: const EdgeInsets.all(Dimens.large),
         child: ElevatedButton(
-          onPressed: () {
-          },
+          onPressed: () {},
           child: Text("درخواست راننده", style: MyTextStyles.button),
         ),
       ),
     );
   }
-
 }
