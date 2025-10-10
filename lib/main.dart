@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:uber/constant/dimens.dart';
+import 'package:uber/screen/map_screen.dart';
 
 void main() {
   runApp(const MyApp());
@@ -11,11 +13,27 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Flutter Demo',
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
-      ),
-      home: AppBar(title: Text('Flutter Demo Home Page')),
+      debugShowCheckedModeBanner: false,
+      home: MapScreen(),
+        theme: ThemeData(
+          elevatedButtonTheme: ElevatedButtonThemeData(
+            style: ElevatedButton.styleFrom(
+              fixedSize: Size(double.infinity, 58),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(Dimens.medium),
+              ),
+              elevation: 0,
+              foregroundColor: Colors.white,
+            ).copyWith(
+              backgroundColor: WidgetStateProperty.resolveWith<Color>((states) {
+                if (states.contains(WidgetState.pressed)) {
+                  return Color.fromARGB(255, 150, 238, 96);
+                }
+                return Color.fromARGB(255, 2, 207, 36);
+              }),
+            ),
+          ),
+        ),
     );
   }
 }
