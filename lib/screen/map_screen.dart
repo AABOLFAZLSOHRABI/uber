@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:uber/constant/dimens.dart';
 import 'package:uber/constant/text_styles.dart';
 import '../widget/back_button.dart';
@@ -20,7 +22,7 @@ class MapScreen extends StatefulWidget {
 
 class _MapScreenState extends State<MapScreen> {
   List currentWidgetList = [CurrentWidgetState.stateSelectOrigin];
-
+  final controller = MapController();
   @override
   Widget build(BuildContext context) {
     return SafeArea(
@@ -31,8 +33,21 @@ class _MapScreenState extends State<MapScreen> {
             Container(color: Colors.blueGrey),
 
             /// current Widget
-            currentWidget(),
+            FlutterMap(
+              mapController: controller,
+              options: MapOptions(
+                keepAlive: true,
+                initialCenter: LatLng(35.6892, 51.3890),
+              ),
 
+              children: [
+                TileLayer(
+                  urlTemplate: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+                  userAgentPackageName: 'com.example.yourapp',
+                )
+              ],
+            ),
+            currentWidget(),
             BackButtonWidget(
               onPressed: () {
                 if (currentWidgetList.length > 1) {
