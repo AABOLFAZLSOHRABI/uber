@@ -1,8 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:uber/constant/dimens.dart';
 import 'package:uber/screen/map_screen.dart';
 
 void main() {
+  SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
+    statusBarColor: Colors.white,
+    statusBarIconBrightness: Brightness.light,
+  ));
   runApp(const MyApp());
 }
 

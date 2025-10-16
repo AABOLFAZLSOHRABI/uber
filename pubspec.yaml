@@ -41,6 +41,8 @@ dependencies:
   flutter_plugin_android_lifecycle: ^2.0.31
   flutter_map: ^8.2.2
   latlong2: ^0.9.1
+  toastification: ^3.0.3
+  geolocator: ^14.0.2
 
 dev_dependencies:
   flutter_test:
