@@ -13,7 +13,7 @@ class BackButtonWidget extends StatelessWidget {
       child: Container(
         width: 50,
         height: 50,
-        decoration: BoxDecoration(
+        decoration: const BoxDecoration(
           color: Colors.white,
           shape: BoxShape.circle,
           boxShadow: [BoxShadow(
@@ -22,7 +22,7 @@ class BackButtonWidget extends StatelessWidget {
               blurRadius: 18
           )],
         ),
-        child: IconButton(onPressed: () => onPressed(), icon: Icon(Icons.arrow_back)),
+        child: IconButton(onPressed: () => onPressed(), icon: const Icon(Icons.arrow_back)),
       ),
     );
   }

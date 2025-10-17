@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:toastification/toastification.dart';
+import 'package:uber/consts/navigation_service.dart';
 import '../constant/text_styles.dart';
 
-void showSuccessToast(BuildContext context, String message) {
+void showSuccessToast(String message) {
+  final context = globalContext;
   toastification.show(
     style: ToastificationStyle.flat,
     context: context,

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:uber/constant/dimens.dart';
+import 'package:uber/consts/navigation_service.dart';
 import 'package:uber/screen/map_screen.dart';
 
 void main() {
@@ -18,12 +19,13 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      navigatorKey: navigatorKey,
       debugShowCheckedModeBanner: false,
-      home: MapScreen(),
+      home: const MapScreen(),
         theme: ThemeData(
           elevatedButtonTheme: ElevatedButtonThemeData(
             style: ElevatedButton.styleFrom(
-              fixedSize: Size(double.infinity, 58),
+              fixedSize: const Size(double.infinity, 58),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(Dimens.medium),
               ),
@@ -32,9 +34,9 @@ class MyApp extends StatelessWidget {
             ).copyWith(
               backgroundColor: WidgetStateProperty.resolveWith<Color>((states) {
                 if (states.contains(WidgetState.pressed)) {
-                  return Color.fromARGB(255, 150, 238, 96);
+                  return const Color.fromARGB(255, 150, 238, 96);
                 }
-                return Color.fromARGB(255, 2, 207, 36);
+                return const Color.fromARGB(255, 2, 207, 36);
               }),
             ),
           ),

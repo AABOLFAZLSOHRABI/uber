@@ -1,64 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
+import 'package:flutter_svg/svg.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:uber/constant/dimens.dart';
-import 'package:uber/constant/text_styles.dart';
 import 'package:uber/consts/const_texts.dart';
+import 'package:uber/gen/assets.gen.dart';
+import 'package:uber/widget/map_widgets.dart';
 import 'package:uber/widget/toast_widget.dart';
 import '../widget/back_button.dart';
-import 'package:geolocator/geolocator.dart';
+import 'package:uber/service/location_service.dart';
 
-Future<LatLng?> _getUserCurrentLocation({
-  required VoidCallback onGpsDisabled,
-  required VoidCallback onPermissionDenied,
-  required VoidCallback onPermissionDeniedForever,
-}) async {
-  try {
-    bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
-    if (!serviceEnabled) {
-      onGpsDisabled();
-      await Geolocator.openLocationSettings();
-      return null;
-    }
-
-    LocationPermission permission = await Geolocator.checkPermission();
-    if (permission == LocationPermission.denied) {
-      permission = await Geolocator.requestPermission();
-      if (permission == LocationPermission.denied) {
-        onPermissionDenied();
-        return null;
-      }
-    }
-
-    if (permission == LocationPermission.deniedForever) {
-      onPermissionDeniedForever();
-      await Geolocator.openAppSettings();
-      return null;
-    }
-
-    LocationSettings locationSettings = const LocationSettings(
-      accuracy: LocationAccuracy.high,
-      distanceFilter: 10,
-    );
-
-    Position position = await Geolocator.getCurrentPosition(
-      locationSettings: locationSettings,
-    );
-
-    return LatLng(position.latitude, position.longitude);
-  } catch (e) {
-    return null;
-  }
-}
-
-
-class CurrentWidgetState {
-  CurrentWidgetState._();
-
-  static const stateSelectOrigin = 0;
-  static const stateSelectDestination = 1;
-  static const stateRequestDriver = 2;
-}
+enum MapState { selectOrigin, selectDestination, requestDriver }
 
 class MapScreen extends StatefulWidget {
   const MapScreen({super.key});
@@ -68,12 +20,20 @@ class MapScreen extends StatefulWidget {
 }
 
 class _MapScreenState extends State<MapScreen> {
-  List currentWidgetList = [CurrentWidgetState.stateSelectOrigin];
-  final controller = MapController();
-  final LatLng userLocation = LatLng(35.6892, 51.3890);
+  final LocationService _locationService = LocationService();
+  MapState currentMapState = MapState.selectOrigin;
+  final MapController controller = MapController();
+  final initialCenter = const LatLng(35.6892, 51.3890);
   LatLng? originPoint;
   LatLng? destinationPoint;
+  bool _isLoadingLocation = false;
+  double? tripDistanceKm;
 
+  double _calculateDirectDistance(LatLng point1, LatLng point2) {
+    const Distance distance = Distance();
+    final double meters = distance(point1, point2);
+    return meters / 1000.0;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -86,16 +46,22 @@ class _MapScreenState extends State<MapScreen> {
             FlutterMap(
               mapController: controller,
               options: MapOptions(
-                initialCenter: LatLng(35.6892, 51.3890),
+                initialCenter: initialCenter,
                 initialZoom: 13.0,
                 onTap: (tapPosition, point) {
                   setState(() {
-                    if (currentWidgetList.last ==
-                        CurrentWidgetState.stateSelectOrigin) {
+                    if (currentMapState == MapState.selectOrigin) {
                       originPoint = point;
-                    } else if (currentWidgetList.last ==
-                        CurrentWidgetState.stateSelectDestination) {
+                    } else if (currentMapState == MapState.selectDestination) {
                       destinationPoint = point;
+                    }
+                    if (originPoint != null && destinationPoint != null) {
+                      tripDistanceKm = _calculateDirectDistance(
+                        originPoint!,
+                        destinationPoint!,
+                      );
+                    } else {
+                      tripDistanceKm = null;
                     }
                   });
                 },
@@ -112,10 +78,9 @@ class _MapScreenState extends State<MapScreen> {
                         point: originPoint!,
                         width: 50,
                         height: 50,
-                        child: Icon(
-                          Icons.location_on,
-                          color: Colors.green,
-                          size: 40,
+                        child: SvgPicture.asset(
+                          Assets.icons.origin,
+                          height: 40,
                         ),
                       ),
                     if (destinationPoint != null)
@@ -123,66 +88,22 @@ class _MapScreenState extends State<MapScreen> {
                         point: destinationPoint!,
                         width: 50,
                         height: 50,
-                        child: Icon(Icons.my_location_sharp, color: Colors.red, size: 40),
+                        child: SvgPicture.asset(
+                          Assets.icons.destination,
+                          height: 40,
+                        ),
                       ),
                   ],
                 ),
               ],
             ),
-            Positioned(
-              bottom: 100,
-              right: 20,
-              child: FloatingActionButton(
-                onPressed: () async {
-                  // نمایش پیام در حال دریافت موقعیت
-                  showSuccessToast(context, ConstTexts.gettingPosition);
-
-                  LatLng? pos = await _getUserCurrentLocation(
-                    onGpsDisabled: () => showSuccessToast(context, ConstTexts.pleaseEnableGPS),
-                    onPermissionDenied: () => showSuccessToast(context, ConstTexts.accessNotGranted),
-                    onPermissionDeniedForever: () => showSuccessToast(context, ConstTexts.accessNotGranted),
-                  );
-
-                  if (pos != null) {
-                    setState(() {
-                      originPoint = pos;
-                      controller.move(pos, 15.0);
-                    });
-                    showSuccessToast(context, ConstTexts.locationHasBeenDisplayed);
-                  }
-                },
-                child: const Icon(Icons.my_location),
+            if (currentMapState != MapState.requestDriver)
+              UserLocationFAB(
+                onPressed: _onLocationFABPressed,
+                isLoading: _isLoadingLocation,
               ),
-            ),
             currentWidget(),
-            BackButtonWidget(
-              onPressed: () {
-                if (currentWidgetList.length <= 1) {
-                  // Navigator.of(context).pop();
-                  return;
-                }
-
-                // اگر بیش از یک حالت هست، حذف-last و پاک کردن نقطه مربوطه
-                setState(() {
-                  // حذف حالت فعلی
-                  currentWidgetList.removeLast();
-
-                  // حالت فعلی جدید بعد از حذف
-                  final currentState = currentWidgetList.isNotEmpty
-                      ? currentWidgetList.last
-                      : CurrentWidgetState.stateSelectOrigin;
-
-                  // اگر برگشتیم به صفحه انتخاب مبدا => مبدا رو پاک کن
-                  if (currentState == CurrentWidgetState.stateSelectOrigin) {
-                    originPoint = null;
-                  }
-                  // اگر برگشتیم به صفحه انتخاب مقصد => مقصد رو پاک کن
-                  else if (currentState == CurrentWidgetState.stateSelectDestination) {
-                    destinationPoint = null;
-                  }
-                });
-              },
-            ),
+            BackButtonWidget(onPressed: _handleBackButton),
           ],
         ),
       ),
@@ -190,73 +111,125 @@ class _MapScreenState extends State<MapScreen> {
   }
 
   Widget currentWidget() {
-    Widget widget = origin();
-    switch (currentWidgetList.last) {
-      case CurrentWidgetState.stateSelectOrigin:
-        widget = origin();
-        break;
-      case CurrentWidgetState.stateSelectDestination:
-        widget = dest();
-        break;
-      case CurrentWidgetState.stateRequestDriver:
-        widget = reqDriver();
-        break;
+    switch (currentMapState) {
+      case MapState.selectOrigin:
+        return SelectOriginButton(
+          onPressed: () {
+            setState(() {
+              currentMapState = MapState.selectDestination;
+            });
+            showSuccessToast(ConstTexts.originSelected);
+          },
+        );
+
+      case MapState.selectDestination:
+        return SelectDestinationButton(
+          onPressed: () {
+            setState(() {
+              currentMapState = MapState.requestDriver;
+            });
+            showSuccessToast(ConstTexts.destinationSelected);
+          },
+        );
+
+      case MapState.requestDriver: // فقط یک بار تعریف شود
+        return Positioned(
+          bottom: 0,
+          left: 0,
+          right: 0,
+          child: Padding(
+            padding: const EdgeInsets.all(Dimens.large),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // ۱. ویجت نمایش فاصله
+                if (tripDistanceKm != null)
+                  DistanceDisplayWidget(distanceKm: tripDistanceKm),
+
+                // ۲. ویجت دکمه درخواست راننده
+                RequestDriverButton(
+                  onPressed: () {
+                    // منطق درخواست راننده
+                  },
+                ),
+              ],
+            ),
+          ),
+        );
     }
-    return widget;
-
-  }
-  Positioned origin() {
-    return Positioned(
-      bottom: 0,
-      left: 0,
-      right: 0,
-      child: Padding(
-        padding: const EdgeInsets.all(Dimens.large),
-        child: ElevatedButton(
-          onPressed: () {
-            setState(() {
-              currentWidgetList.add(CurrentWidgetState.stateSelectDestination);
-            });
-            showSuccessToast(context, ConstTexts.originSelected);
-          },
-          child: Text(ConstTexts.selectOrigin, style: MyTextStyles.button),
-        ),
-      ),
-    );
   }
 
-  Positioned dest() {
-    return Positioned(
-      bottom: 0,
-      left: 0,
-      right: 0,
-      child: Padding(
-        padding: const EdgeInsets.all(Dimens.large),
-        child: ElevatedButton(
-          onPressed: () {
-            setState(() {
-              currentWidgetList.add(CurrentWidgetState.stateRequestDriver);
-            });
-            showSuccessToast(context, ConstTexts.destinationSelected);
-          },
-          child: Text(ConstTexts.selectDestination, style: MyTextStyles.button),
-        ),
-      ),
-    );
+  void _handleBackButton() {
+    setState(() {
+      switch (currentMapState) {
+        case MapState.selectOrigin:
+          // اگر در اولین وضعیت هستیم، از صفحه خارج می‌شویم (یا کاری نمی‌کنیم)
+          // Navigator.of(context).pop();
+          break;
+        case MapState.selectDestination:
+          // بازگشت به انتخاب مبدا
+          currentMapState = MapState.selectOrigin;
+          originPoint = null; // پاک کردن مبدا در صورت نیاز
+          break;
+        case MapState.requestDriver:
+          // بازگشت به انتخاب مقصد
+          currentMapState = MapState.selectDestination;
+          destinationPoint = null; // پاک کردن مقصد
+          break;
+      }
+    });
   }
 
-  Positioned reqDriver() {
-    return Positioned(
-      bottom: 0,
-      left: 0,
-      right: 0,
-      child: Padding(
-        padding: const EdgeInsets.all(Dimens.large),
-        child: ElevatedButton(
-          onPressed: () {},
-          child: Text(ConstTexts.requestDriver, style: MyTextStyles.button),
-        ),
-      ),
+  // در کلاس _MapScreenState
+
+  void _onLocationFABPressed() async {
+    // ۱. شروع لودینگ
+    setState(() => _isLoadingLocation = true);
+
+    // ۲. فراخوانی سرویس LocationService با Callbacks
+    LatLng? pos = await _locationService.getUserCurrentLocation(
+      onGpsDisabled: () {
+        // این Callback اجرا می‌شود اگر GPS خاموش باشد.
+        // اگر logic باز کردن تنظیمات در LocationService باشد، این فقط یک log است.
+        debugPrint('GPS Disabled or not enabled.');
+      },
+      onPermissionDenied: () {
+        // این Callback اجرا می‌شود اگر مجوز رد شود.
+        debugPrint('Location permission denied.');
+      },
+      onPermissionDeniedForever: () {
+        // این Callback اجرا می‌شود اگر مجوز برای همیشه رد شود.
+        debugPrint('Location permission denied forever.');
+      },
     );
+
+    // بررسی mounted قبل از setState
+    if (!mounted) return;
+
+    // ۳. پایان لودینگ
+    setState(() => _isLoadingLocation = false);
+
+    // ۴. استفاده از موقعیت دریافت شده و به‌روزرسانی UI
+    if (pos != null) {
+      setState(() {
+
+        // تعیین نقطه بر اساس وضعیت فعلی نقشه
+        if (currentMapState == MapState.selectOrigin) {
+          originPoint = pos;
+        } else if (currentMapState == MapState.selectDestination) {
+          destinationPoint = pos;
+        }
+
+        // حرکت دوربین به موقعیت جدید
+        controller.move(pos, 15.0);
+
+        // محاسبه مجدد فاصله پس از تنظیم نقطه مقصد
+        if (originPoint != null && destinationPoint != null) {
+          tripDistanceKm = _calculateDirectDistance(originPoint!, destinationPoint!);
+        }
+      });
+    }
   }
+
 }
